@@ -1,5 +1,8 @@
 import sys
 import asyncio
+import json
+import os
+from pydantic import AnyUrl
 from typing import Optional, Any
 from contextlib import AsyncExitStack
 from mcp import ClientSession, StdioServerParameters, types
@@ -18,6 +21,10 @@ class MCPClient:
         self._env = env
         self._session: Optional[ClientSession] = None
         self._exit_stack: AsyncExitStack = AsyncExitStack()
+
+    def _debug(self, label: str, value: Any):
+        if os.getenv("MCP_DEBUG", "0") == "1":
+            print(f"[MCP DEBUG] {label}: {value}", file=sys.stderr)
 
     async def connect(self):
         server_params = StdioServerParameters(
@@ -46,9 +53,14 @@ class MCPClient:
         return result.tools
 
     async def call_tool(
-      self, tool_name: str, tool_input: dict
+        self, tool_name: str, tool_input: dict
     ) -> types.CallToolResult | None:
-     return await self.session().call_tool(tool_name, tool_input)
+        result = await self.session().call_tool(tool_name, tool_input)
+        self._debug("tool_name", tool_name)
+        self._debug("tool_input", tool_input)
+        self._debug("result.content", result.content)
+        self._debug("result.isError", result.isError)
+        return result
 
     async def list_prompts(self) -> list[types.Prompt]:
         # TODO: Return a list of prompts defined by the MCP server
@@ -59,8 +71,21 @@ class MCPClient:
         return []
 
     async def read_resource(self, uri: str) -> Any:
-        # TODO: Read a resource, parse the contents and return it
-        return []
+        result = await self.session().read_resource(AnyUrl(uri))
+        self._debug("resource_uri", uri)
+        self._debug("resource_contents", result.contents)
+
+        if not result.contents:
+            raise ValueError(f"Resource {uri} returned no contents")
+
+        resource = result.contents[0]
+        if not isinstance(resource, types.TextResourceContents):
+            raise TypeError(f"Resource {uri} did not return text content")
+
+        if resource.mimeType == "application/json":
+            return json.loads(resource.text)
+
+        return resource.text
 
     async def cleanup(self):
         await self._exit_stack.aclose()
