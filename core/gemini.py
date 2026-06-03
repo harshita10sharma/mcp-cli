@@ -20,9 +20,6 @@ class Gemini:
             messages.append(response.candidates[0].content)
 
     def text_from_message(self, response) -> str:
-        if response.text:
-            return response.text
-
         if not response.candidates or not response.candidates[0].content:
             return ""
 

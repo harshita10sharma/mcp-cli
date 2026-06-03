@@ -71,10 +71,25 @@ def format_document(
     <document_id>{doc_id}</document_id>
 
     Add in headers, bullet points, tables, etc as necessary. Feel free to add in structure.
-    Use the 'edit_document' tool to edit the document. After the document has been reformatted...
+    Use the 'read_doc' tool to read the document, then use the 'edit_doc' tool to edit it.
     """
     return [base.UserMessage(prompt)]
-# TODO: Write a prompt to summarize a doc
+@mcp.prompt(
+    name="summary",
+    description="Summarizes the contents of a document"
+)
+def summarize_document(
+    doc_id: str = Field(description="Id of the document to summarize")
+) -> list[base.Message]:
+    prompt = f"""
+    Your goal is to summarize a document clearly and concisely.
+
+    The id of the document you need to summarize is:
+    <document_id>{doc_id}</document_id>
+
+    Read the document content, then provide a brief summary with the key points.
+    """
+    return [base.UserMessage(prompt)]
 
 
 if __name__ == "__main__":
